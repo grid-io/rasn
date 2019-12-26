@@ -1,5 +1,6 @@
-use chrono;
 use std::str;
+
+use chrono;
 
 use reader::Reader;
 use types::ASNError::UnsupportedId;
@@ -420,7 +421,6 @@ impl<'a> Iterator for Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-
     use parser::*;
     use reader::Reader;
     use types::{

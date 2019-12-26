@@ -1,10 +1,8 @@
+use std::fmt::Debug;
+
 use parser::Parser;
 use printer::{print_type, LinePrinter, Printable};
-use std::fmt::Debug;
-use types::{
-    ASNError, ASNObjectIdentifier, BitString, Boolean, ExplicitTag, IA5String, Integer,
-    ObjectIdentifier, OctetString,
-};
+use types::*;
 
 #[derive(Debug)]
 pub struct Extension<'a> {

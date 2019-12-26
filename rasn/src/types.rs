@@ -1,9 +1,11 @@
 extern crate chrono;
 
+use std::fmt::Display;
+
 use chrono::{DateTime, FixedOffset};
+
 use oid::get_oid;
 use reader;
-use std::fmt::Display;
 
 #[derive(Debug, PartialEq)]
 pub struct ASNInteger<'a> {

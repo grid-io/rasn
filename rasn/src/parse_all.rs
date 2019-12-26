@@ -44,7 +44,6 @@ pub fn parse_all(input: &[u8], handler: &mut dyn ParseHandler) -> Result<(), ASN
 
 #[cfg(test)]
 mod tests {
-
     use parse_all::{parse_all, ParseHandler};
     use types::{ASNError, ASNType};
 
