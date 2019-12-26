@@ -69,11 +69,20 @@ impl<'a> Printable for AlgorithmIdentifier<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum Version {
     V1,
     V2,
     V3,
+}
+
+impl Version {
+    pub fn is_v3(self) -> bool {
+        match self {
+            Version::V3 => true,
+            _ => false
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -389,7 +398,6 @@ impl<'a> TBSCertificate<'a> {
         }
 
         fn parse_extensions<'a>(parser: &mut Parser<'a>) -> Result<Vec<Extension<'a>>, ASNError> {
-            // TODO: check minimum version
             let mut extensions: Vec<Extension> = Vec::new();
             if let Some(tag) = parser.get_optional_explicit_tag(3)? {
                 let mut parser = Parser::unwrap_outer_sequence(tag.contents)?;
@@ -401,8 +409,10 @@ impl<'a> TBSCertificate<'a> {
         }
 
         fn parse_tbs_cert<'a>(parser: &mut Parser<'a>) -> Result<TBSCertificate<'a>, ASNError> {
+            let version = parse_version(parser)?;
+
             Ok(TBSCertificate::new(
-                parse_version(parser)?,
+                version,
                 parser.expect::<Integer>()?,
                 AlgorithmIdentifier::parse(parser.expect::<Sequence>()?)?,
                 Name::parse(parser.expect::<Sequence>()?)?,
@@ -411,7 +421,7 @@ impl<'a> TBSCertificate<'a> {
                 SubjectPublicKeyInfo::parse(parser.expect::<Sequence>()?)?,
                 parse_optional_bitstring(parser, 1)?,
                 parse_optional_bitstring(parser, 2)?,
-                parse_extensions(parser)?,
+                if version.is_v3() { parse_extensions(parser)? } else { Vec::new() },
             ))
         }
 

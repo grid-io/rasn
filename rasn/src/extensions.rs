@@ -15,25 +15,30 @@ pub struct Extension<'a> {
 pub enum SpecificExtension<'a> {
     Unknown(&'a [u8]),
     SubjectKeyIdentifier(&'a [u8]),
+    KeyUsage(KeyUsage),
 }
 
 impl<'a> SpecificExtension<'a> {
     pub fn get_name(&self) ->  &'static str {
         match self {
             SpecificExtension::Unknown(_) => "Unknown",
-            SpecificExtension::SubjectKeyIdentifier(_) => "Subject Key Identifier"
+            SpecificExtension::SubjectKeyIdentifier(_) => "Subject Key Identifier",
+            SpecificExtension::KeyUsage(_) => "Key Usage",
         }
     }
 }
 
 impl<'a> Printable for SpecificExtension<'a> {
-    fn print(&self, printer: &mut LinePrinter) {
+    fn print(&self, printer: &mut dyn LinePrinter) {
         match self {
             SpecificExtension::Unknown(bytes) => {
-
+                print_type("contents", bytes, printer)
             }
             SpecificExtension::SubjectKeyIdentifier(bytes) => {
-
+                print_type("value", bytes, printer)
+            }
+            SpecificExtension::KeyUsage(value) => {
+                print_type("value", value, printer)
             }
         }
     }
@@ -60,8 +65,8 @@ impl<'a> Extension<'a> {
 
             let content: SpecificExtension<'a> = match oid.values() {
                 [2, 5, 29, 14] => SpecificExtension::SubjectKeyIdentifier(raw_content),
+                [2, 5, 29, 15] => SpecificExtension::KeyUsage(KeyUsage::parse(raw_content)?),
                 /*
-                [2, 5, 29, 15] => Box::new(KeyUsage::parse(raw_content)?),
                 [2, 5, 29, 17] => Box::new(SubjectAlternativeName::parse(raw_content)?),
                 [2, 5, 29, 19] => Box::new(BasicConstraints::parse(raw_content)?),
                 [2, 5, 29, 37] => Box::new(ExtendedKeyUsage::parse(raw_content)?),
@@ -90,61 +95,6 @@ impl<'a> Printable for Extension<'a> {
 
 
 
-/*
-pub trait SpecificExtension: Debug + Printable {
-    fn get_name(&self) -> &'static str;
-}
-
-
-#[derive(Debug)]
-pub struct UnknownExtension<'a> {
-    pub extn_value: &'a [u8],
-}
-
-
-impl<'a> SpecificExtension for UnknownExtension<'a> {
-    fn get_name(&self) -> &'static str {
-        "Unknown extension"
-    }
-}
-
-impl<'a> UnknownExtension<'a> {
-    fn new(extn_value: &'a [u8]) -> UnknownExtension<'a> {
-        UnknownExtension { extn_value }
-    }
-}
-
-impl<'a> Printable for UnknownExtension<'a> {
-    fn print(&self, printer: &mut dyn LinePrinter) {
-        print_type("raw content", &self.extn_value, printer);
-    }
-}
-
-#[derive(Debug)]
-pub struct SubjectKeyIdentifier<'a> {
-    pub key_identifier: &'a [u8],
-}
-
-impl<'a> SpecificExtension for SubjectKeyIdentifier<'a> {
-    fn get_name(&self) -> &'static str {
-        "Subject Key Identifier"
-    }
-}
-
-impl<'a> SubjectKeyIdentifier<'a> {
-    fn parse(input: &[u8]) -> Result<SubjectKeyIdentifier, ASNError> {
-        let mut parser = Parser::new(input);
-        let key_identifier = parser.expect::<OctetString>()?;
-        Ok(SubjectKeyIdentifier { key_identifier })
-    }
-}
-
-
-impl<'a> Printable for SubjectKeyIdentifier<'a> {
-    fn print(&self, printer: &mut dyn LinePrinter) {
-        print_type("key identifier", &self.key_identifier, printer);
-    }
-}
 
 #[derive(Debug)]
 pub struct KeyUsage {
@@ -159,51 +109,34 @@ pub struct KeyUsage {
     pub decipher_only: bool,
 }
 
-*/
-
-/*
-impl SpecificExtension for KeyUsage {
-    fn get_name(&self) -> &'static str {
-        "Key Usage"
-    }
-}
-
-
 impl KeyUsage {
     fn parse(input: &[u8]) -> Result<KeyUsage, ASNError> {
-        let mut parser = Parser::new(input);
-        let bit_string = parser.expect::<BitString>()?;
 
-        let mut key_usage = KeyUsage {
-            digital_signature: false,
-            content_commitment: false,
-            key_encipherment: false,
-            data_encipherment: false,
-            key_agreement: false,
-            key_cert_sign: false,
-            crl_sign: false,
-            encipher_only: false,
-            decipher_only: false,
+        let mut parser = Parser::new(input);
+        let bitstring = parser.expect::<BitString>()?;
+        let mut bits = bitstring.iter();
+
+        let usage = KeyUsage {
+            digital_signature: bits.next().unwrap_or(false),
+            content_commitment: bits.next().unwrap_or(false),
+            key_encipherment: bits.next().unwrap_or(false),
+            data_encipherment: bits.next().unwrap_or(false),
+            key_agreement: bits.next().unwrap_or(false),
+            key_cert_sign: bits.next().unwrap_or(false),
+            crl_sign: bits.next().unwrap_or(false),
+            encipher_only: bits.next().unwrap_or(false),
+            decipher_only: bits.next().unwrap_or(false),
         };
-        let mut offset = 0;
-        for bit in bit_string.iter() {
-            match offset {
-                0 => key_usage.digital_signature = bit,
-                1 => key_usage.content_commitment = bit,
-                2 => key_usage.key_encipherment = bit,
-                3 => key_usage.data_encipherment = bit,
-                4 => key_usage.key_agreement = bit,
-                5 => key_usage.key_cert_sign = bit,
-                6 => key_usage.crl_sign = bit,
-                7 => key_usage.encipher_only = bit,
-                8 => key_usage.decipher_only = bit,
-                _ => {}
-            }
-            offset += offset;
+
+        // don't allow more bits
+        if bits.next().is_some() {
+            return Err(ASNError::BitstringTooLong);
         }
-        Ok(key_usage)
+
+        Ok(usage)
     }
 }
+
 
 impl Printable for KeyUsage {
     fn print(&self, printer: &mut dyn LinePrinter) {
@@ -247,6 +180,7 @@ impl Printable for KeyUsage {
     }
 }
 
+/*
 #[derive(Debug)]
 pub enum GeneralName<'a> {
     OtherName(&'a [u8]),

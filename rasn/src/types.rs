@@ -610,6 +610,8 @@ pub enum ASNError {
     BadEnumValue(&'static str, i32),      // name of the enum and the bad integer value
     UnexpectedOid(ASNObjectIdentifier),   // unexpected object identifier
     UnexpectedTag(u8),                    // unexpected tag
+    BitstringTooShort,                    // a bitstring didn't contain
+    BitstringTooLong,
 }
 
 impl std::convert::From<reader::EndOfStream> for ASNError {
@@ -673,6 +675,12 @@ impl std::fmt::Display for ASNError {
                 write!(f, "The Object Identifier '{}' was unexpected.", oid)
             }
             ASNError::UnexpectedTag(tag) => write!(f, "The explicit tag '{}' was unexpected.", tag),
+            ASNError::BitstringTooShort => {
+                f.write_str("The supplied bitstring was too short for the schema")
+            },
+            ASNError::BitstringTooLong => {
+                f.write_str("The supplied bitstring was too long for the schema")
+            }
         }
     }
 }
