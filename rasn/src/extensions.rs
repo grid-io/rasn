@@ -8,16 +8,44 @@ use types::*;
 pub struct Extension<'a> {
     pub extn_id: ASNObjectIdentifier,
     pub critical: bool,
-    pub content: Box<dyn SpecificExtension + 'a>,
+    pub content: SpecificExtension<'a>,
+}
+
+#[derive(Debug)]
+pub enum SpecificExtension<'a> {
+    Unknown(&'a [u8]),
+    SubjectKeyIdentifier(&'a [u8]),
+}
+
+impl<'a> SpecificExtension<'a> {
+    pub fn get_name(&self) ->  &'static str {
+        match self {
+            SpecificExtension::Unknown(_) => "Unknown",
+            SpecificExtension::SubjectKeyIdentifier(_) => "Subject Key Identifier"
+        }
+    }
+}
+
+impl<'a> Printable for SpecificExtension<'a> {
+    fn print(&self, printer: &mut LinePrinter) {
+        match self {
+            SpecificExtension::Unknown(bytes) => {
+
+            }
+            SpecificExtension::SubjectKeyIdentifier(bytes) => {
+
+            }
+        }
+    }
 }
 
 impl<'a> Extension<'a> {
     pub fn new(
         extn_id: ASNObjectIdentifier,
         critical: bool,
-        content: Box<dyn SpecificExtension + 'a>,
-    ) -> Extension<'a> {
-        Extension {
+        content: SpecificExtension<'a>,
+    ) -> Self {
+        Self {
             extn_id,
             critical,
             content,
@@ -30,13 +58,15 @@ impl<'a> Extension<'a> {
             let is_critical = parser.get_optional_or_default::<Boolean>(false)?;
             let raw_content = parser.expect::<OctetString>()?;
 
-            let content: Box<dyn SpecificExtension> = match oid.values() {
-                [2, 5, 29, 14] => Box::new(SubjectKeyIdentifier::parse(raw_content)?),
+            let content: SpecificExtension<'a> = match oid.values() {
+                [2, 5, 29, 14] => SpecificExtension::SubjectKeyIdentifier(raw_content),
+                /*
                 [2, 5, 29, 15] => Box::new(KeyUsage::parse(raw_content)?),
                 [2, 5, 29, 17] => Box::new(SubjectAlternativeName::parse(raw_content)?),
                 [2, 5, 29, 19] => Box::new(BasicConstraints::parse(raw_content)?),
                 [2, 5, 29, 37] => Box::new(ExtendedKeyUsage::parse(raw_content)?),
-                _ => Box::new(UnknownExtension::new(raw_content)),
+                */
+                _ => SpecificExtension::Unknown(raw_content),
             };
 
             Ok(Extension::new(oid, is_critical, content))
@@ -58,14 +88,19 @@ impl<'a> Printable for Extension<'a> {
     }
 }
 
+
+
+/*
 pub trait SpecificExtension: Debug + Printable {
     fn get_name(&self) -> &'static str;
 }
+
 
 #[derive(Debug)]
 pub struct UnknownExtension<'a> {
     pub extn_value: &'a [u8],
 }
+
 
 impl<'a> SpecificExtension for UnknownExtension<'a> {
     fn get_name(&self) -> &'static str {
@@ -104,6 +139,7 @@ impl<'a> SubjectKeyIdentifier<'a> {
     }
 }
 
+
 impl<'a> Printable for SubjectKeyIdentifier<'a> {
     fn print(&self, printer: &mut dyn LinePrinter) {
         print_type("key identifier", &self.key_identifier, printer);
@@ -123,11 +159,15 @@ pub struct KeyUsage {
     pub decipher_only: bool,
 }
 
+*/
+
+/*
 impl SpecificExtension for KeyUsage {
     fn get_name(&self) -> &'static str {
         "Key Usage"
     }
 }
+
 
 impl KeyUsage {
     fn parse(input: &[u8]) -> Result<KeyUsage, ASNError> {
@@ -404,3 +444,4 @@ impl Printable for ExtendedKeyUsage {
         printer.end_type();
     }
 }
+*/
